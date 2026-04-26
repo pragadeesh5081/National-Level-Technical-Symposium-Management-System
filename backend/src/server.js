@@ -8,6 +8,7 @@ require('dotenv').config();
 const { testConnection } = require('./config/database');
 
 // Import routes
+const authRoutes = require('./routes/auth');
 const participantRoutes = require('./routes/participants');
 const eventRoutes = require('./routes/events');
 const coordinatorRoutes = require('./routes/coordinators');
@@ -29,6 +30,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 testConnection();
 
 // API Routes
+app.use('/api/auth', authRoutes);   // Public: login, setup, verify
 app.use('/api/participants', participantRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/coordinators', coordinatorRoutes);

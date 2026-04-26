@@ -15,6 +15,15 @@ const api = axios.create({
   },
 });
 
+// Attach JWT token to every request automatically
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('symposium_token');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  return config;
+});
+
 // Handle response errors
 api.interceptors.response.use(
   (response) => response,
@@ -153,8 +162,16 @@ export const reportsAPI = {
   getDashboardStats: () => api.get('/reports/dashboard-stats'),
 };
 
+// Auth API
+export const authAPI = {
+  login: (data) => api.post('/auth/login', data),
+  setup: (data) => api.post('/auth/setup', data),
+  verify: () => api.get('/auth/verify'),
+};
+
 // Export all APIs as a single service
 const apiService = {
+  auth: authAPI,
   participants: participantsAPI,
   events: eventsAPI,
   coordinators: coordinatorsAPI,

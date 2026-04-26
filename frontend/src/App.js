@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './App.css';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Login from './components/Login';
 import ParticipantForm from './components/ParticipantForm';
 import EventForm from './components/EventForm';
 import CoordinatorForm from './components/CoordinatorForm';
@@ -9,27 +11,38 @@ import EventAssignmentForm from './components/EventAssignmentForm';
 import EventAssignmentTable from './components/EventAssignmentTable';
 import Dashboard from './components/Dashboard';
 import Reports from './components/Reports';
-import apiService from './services/apiService';
 
-function App() {
+// ─── Inner App (uses auth context) ───────────────────────────────────────────
+function AppInner() {
+  const { isAuthenticated, loading, admin, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
 
-  // Show message function
   const showMessage = (msg, type = 'success') => {
     setMessage(msg);
     setMessageType(type);
-    setTimeout(() => {
-      setMessage('');
-    }, 3000);
+    setTimeout(() => setMessage(''), 3000);
   };
 
-  // Clear message function
   const clearMessage = () => {
     setMessage('');
     setMessageType('');
   };
+
+  // While checking token validity on refresh
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: 16, color: '#6c757d' }}>
+        <p style={{ fontSize: '1.1rem' }}>Loading...</p>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <Login />;
+  }
 
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -70,77 +83,59 @@ function App() {
     <div className="App">
       <div className="header">
         <h1>National Level Technical Symposium Management System</h1>
+        <div className="header-user">
+          <span className="header-username">👤 {admin?.username}</span>
+          <button className="logout-btn" onClick={logout}>Logout</button>
+        </div>
       </div>
-      
+
       <div className="container">
         {message && (
           <div className={`alert alert-${messageType}`}>
             {message}
-            <button 
+            <button
               onClick={clearMessage}
-              style={{ 
-                float: 'right', 
-                background: 'none', 
-                border: 'none', 
-                cursor: 'pointer',
-                fontSize: '16px'
-              }}
+              style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}
             >
               ×
             </button>
           </div>
         )}
-        
+
         <div className="nav-tabs">
-          <button 
-            className={`nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
-          >
-            Dashboard
-          </button>
-          <button 
-            className={`nav-tab ${activeTab === 'participants' ? 'active' : ''}`}
-            onClick={() => setActiveTab('participants')}
-          >
-            Add Participant
-          </button>
-          <button 
-            className={`nav-tab ${activeTab === 'events' ? 'active' : ''}`}
-            onClick={() => setActiveTab('events')}
-          >
-            Add Event
-          </button>
-          <button 
-            className={`nav-tab ${activeTab === 'coordinators' ? 'active' : ''}`}
-            onClick={() => setActiveTab('coordinators')}
-          >
-            Add Coordinator
-          </button>
-          <button 
-            className={`nav-tab ${activeTab === 'registrations' ? 'active' : ''}`}
-            onClick={() => setActiveTab('registrations')}
-          >
-            Registrations
-          </button>
-          <button 
-            className={`nav-tab ${activeTab === 'assignments' ? 'active' : ''}`}
-            onClick={() => setActiveTab('assignments')}
-          >
-            Event Assignments
-          </button>
-          <button 
-            className={`nav-tab ${activeTab === 'reports' ? 'active' : ''}`}
-            onClick={() => setActiveTab('reports')}
-          >
-            Reports
-          </button>
+          {[
+            { key: 'dashboard', label: 'Dashboard' },
+            { key: 'participants', label: 'Add Participant' },
+            { key: 'events', label: 'Add Event' },
+            { key: 'coordinators', label: 'Add Coordinator' },
+            { key: 'registrations', label: 'Registrations' },
+            { key: 'assignments', label: 'Event Assignments' },
+            { key: 'reports', label: 'Reports' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              className={`nav-tab ${activeTab === key ? 'active' : ''}`}
+              onClick={() => setActiveTab(key)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        
+
         <div className="tab-content">
           {renderActiveTab()}
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Root App (provides auth context) ────────────────────────────────────────
+function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
   );
 }
 

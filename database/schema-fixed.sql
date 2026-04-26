@@ -88,3 +88,5 @@ CREATE INDEX idx_event_date ON Event(event_date);
 CREATE INDEX idx_coordinator_type ON Coordinator(type);
 CREATE INDEX idx_registration_status ON Registration(status);
 CREATE INDEX idx_assignment_role ON Event_Assignment(role);
+
+

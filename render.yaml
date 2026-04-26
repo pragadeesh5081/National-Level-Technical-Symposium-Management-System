@@ -18,3 +18,5 @@ services:
         value: # Set this in Render Dashboard after getting it from Aiven
       - key: DB_PORT
         value: # Set this in Render Dashboard after getting it from Aiven
+      - key: JWT_SECRET
+        value: # Set a long random secret string in Render Dashboard e.g. "my_super_secret_symposium_2025_xyz"
