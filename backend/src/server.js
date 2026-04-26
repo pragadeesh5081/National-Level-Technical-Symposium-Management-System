@@ -1,5 +1,6 @@
 // Main server file for Symposium Management System
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
@@ -37,7 +38,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/reset', resetRoutes);
 
 // Root endpoint
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
   res.json({
     message: 'National Level Technical Symposium Management System API',
     version: '1.0.0',
@@ -51,6 +52,15 @@ app.get('/', (req, res) => {
     }
   });
 });
+
+// Serve frontend in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../../frontend/build')));
+  
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../frontend/build', 'index.html'));
+  });
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

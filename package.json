@@ -1,0 +1,13 @@
+{
+  "name": "symposium-system-unified",
+  "version": "1.0.0",
+  "description": "Unified deployable fullstack React and Express application",
+  "scripts": {
+    "postinstall": "cd backend && npm install && cd ../frontend && npm install --legacy-peer-deps",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && node src/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
