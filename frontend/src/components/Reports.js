@@ -3,7 +3,14 @@ import apiService from '../services/apiService';
 
 const Reports = ({ showMessage }) => {
   const [activeReport, setActiveReport] = useState('event-participants');
-  const [data, setData] = useState({});
+  const [data, setData] = useState({
+    eventParticipants: [],
+    eventCoordinators: [],
+    participantsByCollege: [],
+    eventsByType: [],
+    multiEventParticipants: [],
+    coordinatorWorkload: []
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -14,7 +21,7 @@ const Reports = ({ showMessage }) => {
     try {
       setLoading(true);
       
-      // Fetch all report data in parallel
+      // Use allSettled so one failing report doesn't crash the whole page
       const [
         eventParticipantsRes,
         eventCoordinatorsRes,
@@ -22,7 +29,7 @@ const Reports = ({ showMessage }) => {
         eventsByTypeRes,
         multiEventParticipantsRes,
         coordinatorWorkloadRes
-      ] = await Promise.all([
+      ] = await Promise.allSettled([
         apiService.reports.getEventParticipants(),
         apiService.reports.getEventCoordinators(),
         apiService.reports.getParticipantsByCollege(),
@@ -31,13 +38,16 @@ const Reports = ({ showMessage }) => {
         apiService.reports.getCoordinatorWorkload()
       ]);
 
+      const getValue = (result) =>
+        result.status === 'fulfilled' ? (result.value.data.data || []) : [];
+
       setData({
-        eventParticipants: eventParticipantsRes.data.data || [],
-        eventCoordinators: eventCoordinatorsRes.data.data || [],
-        participantsByCollege: participantsByCollegeRes.data.data || [],
-        eventsByType: eventsByTypeRes.data.data || [],
-        multiEventParticipants: multiEventParticipantsRes.data.data || [],
-        coordinatorWorkload: coordinatorWorkloadRes.data.data || []
+        eventParticipants: getValue(eventParticipantsRes),
+        eventCoordinators: getValue(eventCoordinatorsRes),
+        participantsByCollege: getValue(participantsByCollegeRes),
+        eventsByType: getValue(eventsByTypeRes),
+        multiEventParticipants: getValue(multiEventParticipantsRes),
+        coordinatorWorkload: getValue(coordinatorWorkloadRes)
       });
       
     } catch (error) {

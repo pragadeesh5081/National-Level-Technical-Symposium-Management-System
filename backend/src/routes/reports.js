@@ -119,7 +119,7 @@ router.get('/events-by-type', async (req, res) => {
         COUNT(DISTINCT e.event_id) AS total_events,
         COUNT(DISTINCT r.participant_id) AS total_registrations,
         COUNT(DISTINCT ea.coordinator_id) AS total_coordinators,
-        AVG(COUNT(DISTINCT r.participant_id)) OVER (PARTITION BY e.event_type) AS avg_participants_per_event
+        ROUND(COUNT(DISTINCT r.participant_id) / NULLIF(COUNT(DISTINCT e.event_id), 0), 1) AS avg_participants_per_event
       FROM Event e
       LEFT JOIN Registration r ON e.event_id = r.event_id AND r.status = 'registered'
       LEFT JOIN Event_Assignment ea ON e.event_id = ea.event_id
