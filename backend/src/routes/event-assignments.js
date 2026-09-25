@@ -22,8 +22,9 @@ router.get('/', async (req, res) => {
       FROM Event_Assignment ea
       JOIN Coordinator c ON ea.coordinator_id = c.coordinator_id
       JOIN Event e ON ea.event_id = e.event_id
+      WHERE ea.admin_id = ?
       ORDER BY ea.assignment_id ASC
-    `);
+    `, [req.admin.id]);
     
     res.json({
       success: true,
@@ -57,9 +58,9 @@ router.get('/event/:eventId', async (req, res) => {
         c.department
       FROM Event_Assignment ea
       JOIN Coordinator c ON ea.coordinator_id = c.coordinator_id
-      WHERE ea.event_id = ?
+      WHERE ea.event_id = ? AND ea.admin_id = ?
       ORDER BY ea.role, c.type, c.name
-    `, [eventId]);
+    `, [eventId, req.admin.id]);
     
     res.json({
       success: true,
@@ -92,9 +93,9 @@ router.get('/coordinator/:coordinatorId', async (req, res) => {
         e.venue
       FROM Event_Assignment ea
       JOIN Event e ON ea.event_id = e.event_id
-      WHERE ea.coordinator_id = ?
+      WHERE ea.coordinator_id = ? AND ea.admin_id = ?
       ORDER BY e.event_date
-    `, [coordinatorId]);
+    `, [coordinatorId, req.admin.id]);
     
     res.json({
       success: true,
@@ -134,8 +135,8 @@ router.post('/', async (req, res) => {
     
     // Check if coordinator exists
     const [coordinatorCheck] = await pool.execute(
-      'SELECT coordinator_id FROM Coordinator WHERE coordinator_id = ?',
-      [coordinator_id]
+      'SELECT coordinator_id FROM Coordinator WHERE coordinator_id = ? AND admin_id = ?',
+      [coordinator_id, req.admin.id]
     );
     
     if (coordinatorCheck.length === 0) {
@@ -147,8 +148,8 @@ router.post('/', async (req, res) => {
     
     // Check if event exists
     const [eventCheck] = await pool.execute(
-      'SELECT event_id FROM Event WHERE event_id = ?',
-      [event_id]
+      'SELECT event_id FROM Event WHERE event_id = ? AND admin_id = ?',
+      [event_id, req.admin.id]
     );
     
     if (eventCheck.length === 0) {
@@ -160,8 +161,8 @@ router.post('/', async (req, res) => {
     
     // Check if already assigned (UNIQUE constraint will also handle this)
     const [existing] = await pool.execute(
-      'SELECT assignment_id FROM Event_Assignment WHERE coordinator_id = ? AND event_id = ?',
-      [coordinator_id, event_id]
+      'SELECT assignment_id FROM Event_Assignment WHERE coordinator_id = ? AND event_id = ? AND admin_id = ?',
+      [coordinator_id, event_id, req.admin.id]
     );
     
     if (existing.length > 0) {
@@ -173,8 +174,8 @@ router.post('/', async (req, res) => {
     
     // Insert new assignment
     const [result] = await pool.execute(
-      'INSERT INTO Event_Assignment (coordinator_id, event_id, role) VALUES (?, ?, ?)',
-      [coordinator_id, event_id, role || 'coordinator']
+      'INSERT INTO Event_Assignment (coordinator_id, event_id, role, admin_id) VALUES (?, ?, ?, ?)',
+      [coordinator_id, event_id, role || 'coordinator', req.admin.id]
     );
     
     // Fetch the newly created assignment with details
@@ -192,8 +193,8 @@ router.post('/', async (req, res) => {
       FROM Event_Assignment ea
       JOIN Coordinator c ON ea.coordinator_id = c.coordinator_id
       JOIN Event e ON ea.event_id = e.event_id
-      WHERE ea.assignment_id = ?
-    `, [result.insertId]);
+      WHERE ea.assignment_id = ? AND ea.admin_id = ?
+    `, [result.insertId, req.admin.id]);
     
     res.status(201).json({
       success: true,
@@ -235,8 +236,8 @@ router.put('/:id', async (req, res) => {
     
     // Check if assignment exists
     const [existing] = await pool.execute(
-      'SELECT assignment_id FROM Event_Assignment WHERE assignment_id = ?',
-      [id]
+      'SELECT assignment_id FROM Event_Assignment WHERE assignment_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (existing.length === 0) {
@@ -248,8 +249,8 @@ router.put('/:id', async (req, res) => {
     
     // Update assignment
     await pool.execute(
-      'UPDATE Event_Assignment SET role = ? WHERE assignment_id = ?',
-      [role, id]
+      'UPDATE Event_Assignment SET role = ? WHERE assignment_id = ? AND admin_id = ?',
+      [role, id, req.admin.id]
     );
     
     // Fetch updated assignment with details
@@ -267,8 +268,8 @@ router.put('/:id', async (req, res) => {
       FROM Event_Assignment ea
       JOIN Coordinator c ON ea.coordinator_id = c.coordinator_id
       JOIN Event e ON ea.event_id = e.event_id
-      WHERE ea.assignment_id = ?
-    `, [id]);
+      WHERE ea.assignment_id = ? AND ea.admin_id = ?
+    `, [id, req.admin.id]);
     
     res.json({
       success: true,
@@ -295,8 +296,8 @@ router.delete('/:id', async (req, res) => {
     
     // Check if assignment exists
     const [existing] = await connection.execute(
-      'SELECT assignment_id FROM Event_Assignment WHERE assignment_id = ?',
-      [id]
+      'SELECT assignment_id FROM Event_Assignment WHERE assignment_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (existing.length === 0) {
@@ -309,8 +310,8 @@ router.delete('/:id', async (req, res) => {
     
     // Delete assignment
     await connection.execute(
-      'DELETE FROM Event_Assignment WHERE assignment_id = ?',
-      [id]
+      'DELETE FROM Event_Assignment WHERE assignment_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     // Check if table is now empty, if so reset AUTO_INCREMENT

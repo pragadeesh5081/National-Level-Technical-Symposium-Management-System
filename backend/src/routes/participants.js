@@ -8,7 +8,8 @@ const ResetService = require('../services/resetService');
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT * FROM Participant ORDER BY participant_id ASC'
+      'SELECT * FROM Participant WHERE admin_id = ? ORDER BY participant_id ASC',
+      [req.admin.id]
     );
     res.json({
       success: true,
@@ -30,8 +31,8 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await pool.execute(
-      'SELECT * FROM Participant WHERE participant_id = ?',
-      [id]
+      'SELECT * FROM Participant WHERE participant_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (rows.length === 0) {
@@ -71,8 +72,8 @@ router.post('/', async (req, res) => {
     // Check if email already exists (if provided)
     if (email) {
       const [existing] = await pool.execute(
-        'SELECT participant_id FROM Participant WHERE email = ?',
-        [email]
+        'SELECT participant_id FROM Participant WHERE email = ? AND admin_id = ?',
+        [email, req.admin.id]
       );
       
       if (existing.length > 0) {
@@ -85,14 +86,14 @@ router.post('/', async (req, res) => {
     
     // Insert new participant
     const [result] = await pool.execute(
-      'INSERT INTO Participant (name, college, department, email, phone) VALUES (?, ?, ?, ?, ?)',
-      [name, college, department, email || null, phone || null]
+      'INSERT INTO Participant (name, college, department, email, phone, admin_id) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, college, department, email || null, phone || null, req.admin.id]
     );
     
     // Fetch the newly created participant
     const [newParticipant] = await pool.execute(
-      'SELECT * FROM Participant WHERE participant_id = ?',
-      [result.insertId]
+      'SELECT * FROM Participant WHERE participant_id = ? AND admin_id = ?',
+      [result.insertId, req.admin.id]
     );
     
     res.status(201).json({
@@ -118,8 +119,8 @@ router.put('/:id', async (req, res) => {
     
     // Check if participant exists
     const [existing] = await pool.execute(
-      'SELECT participant_id FROM Participant WHERE participant_id = ?',
-      [id]
+      'SELECT participant_id FROM Participant WHERE participant_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (existing.length === 0) {
@@ -132,8 +133,8 @@ router.put('/:id', async (req, res) => {
     // Check if email already exists for another participant (if provided)
     if (email) {
       const [emailCheck] = await pool.execute(
-        'SELECT participant_id FROM Participant WHERE email = ? AND participant_id != ?',
-        [email, id]
+        'SELECT participant_id FROM Participant WHERE email = ? AND participant_id != ? AND admin_id = ?',
+        [email, id, req.admin.id]
       );
       
       if (emailCheck.length > 0) {
@@ -146,14 +147,14 @@ router.put('/:id', async (req, res) => {
     
     // Update participant
     await pool.execute(
-      'UPDATE Participant SET name = ?, college = ?, department = ?, email = ?, phone = ? WHERE participant_id = ?',
-      [name, college, department, email || null, phone || null, id]
+      'UPDATE Participant SET name = ?, college = ?, department = ?, email = ?, phone = ? WHERE participant_id = ? AND admin_id = ?',
+      [name, college, department, email || null, phone || null, id, req.admin.id]
     );
     
     // Fetch updated participant
     const [updated] = await pool.execute(
-      'SELECT * FROM Participant WHERE participant_id = ?',
-      [id]
+      'SELECT * FROM Participant WHERE participant_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     res.json({
@@ -181,8 +182,8 @@ router.delete('/:id', async (req, res) => {
     
     // Check if participant exists
     const [existing] = await connection.execute(
-      'SELECT participant_id FROM Participant WHERE participant_id = ?',
-      [id]
+      'SELECT participant_id FROM Participant WHERE participant_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (existing.length === 0) {
@@ -195,8 +196,8 @@ router.delete('/:id', async (req, res) => {
     
     // Delete participant (will cascade delete registrations)
     await connection.execute(
-      'DELETE FROM Participant WHERE participant_id = ?',
-      [id]
+      'DELETE FROM Participant WHERE participant_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     // Check if table is now empty, if so reset AUTO_INCREMENT

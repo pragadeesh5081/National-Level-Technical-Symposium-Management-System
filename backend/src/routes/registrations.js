@@ -23,8 +23,9 @@ router.get('/', async (req, res) => {
       FROM Registration r
       JOIN Participant p ON r.participant_id = p.participant_id
       JOIN Event e ON r.event_id = e.event_id
+      WHERE r.admin_id = ?
       ORDER BY r.registration_id ASC
-    `);
+    `, [req.admin.id]);
     
     res.json({
       success: true,
@@ -58,9 +59,9 @@ router.get('/event/:eventId', async (req, res) => {
         p.phone
       FROM Registration r
       JOIN Participant p ON r.participant_id = p.participant_id
-      WHERE r.event_id = ? AND r.status = 'registered'
+      WHERE r.event_id = ? AND r.status = 'registered' AND r.admin_id = ?
       ORDER BY p.name
-    `, [eventId]);
+    `, [eventId, req.admin.id]);
     
     res.json({
       success: true,
@@ -93,9 +94,9 @@ router.get('/participant/:participantId', async (req, res) => {
         e.venue
       FROM Registration r
       JOIN Event e ON r.event_id = e.event_id
-      WHERE r.participant_id = ? AND r.status = 'registered'
+      WHERE r.participant_id = ? AND r.status = 'registered' AND r.admin_id = ?
       ORDER BY e.event_date
-    `, [participantId]);
+    `, [participantId, req.admin.id]);
     
     res.json({
       success: true,
@@ -127,8 +128,8 @@ router.post('/', async (req, res) => {
     
     // Check if participant exists
     const [participantCheck] = await pool.execute(
-      'SELECT participant_id FROM Participant WHERE participant_id = ?',
-      [participant_id]
+      'SELECT participant_id FROM Participant WHERE participant_id = ? AND admin_id = ?',
+      [participant_id, req.admin.id]
     );
     
     if (participantCheck.length === 0) {
@@ -140,8 +141,8 @@ router.post('/', async (req, res) => {
     
     // Check if event exists
     const [eventCheck] = await pool.execute(
-      'SELECT event_id FROM Event WHERE event_id = ?',
-      [event_id]
+      'SELECT event_id FROM Event WHERE event_id = ? AND admin_id = ?',
+      [event_id, req.admin.id]
     );
     
     if (eventCheck.length === 0) {
@@ -153,8 +154,8 @@ router.post('/', async (req, res) => {
     
     // Check if already registered (UNIQUE constraint will also handle this)
     const [existing] = await pool.execute(
-      'SELECT registration_id FROM Registration WHERE participant_id = ? AND event_id = ?',
-      [participant_id, event_id]
+      'SELECT registration_id FROM Registration WHERE participant_id = ? AND event_id = ? AND admin_id = ?',
+      [participant_id, event_id, req.admin.id]
     );
     
     if (existing.length > 0) {
@@ -166,8 +167,8 @@ router.post('/', async (req, res) => {
     
     // Insert new registration
     const [result] = await pool.execute(
-      'INSERT INTO Registration (participant_id, event_id, status) VALUES (?, ?, ?)',
-      [participant_id, event_id, status || 'registered']
+      'INSERT INTO Registration (participant_id, event_id, status, admin_id) VALUES (?, ?, ?, ?)',
+      [participant_id, event_id, status || 'registered', req.admin.id]
     );
     
     // Fetch the newly created registration with details
@@ -185,8 +186,8 @@ router.post('/', async (req, res) => {
       FROM Registration r
       JOIN Participant p ON r.participant_id = p.participant_id
       JOIN Event e ON r.event_id = e.event_id
-      WHERE r.registration_id = ?
-    `, [result.insertId]);
+      WHERE r.registration_id = ? AND r.admin_id = ?
+    `, [result.insertId, req.admin.id]);
     
     res.status(201).json({
       success: true,
@@ -228,8 +229,8 @@ router.put('/:id', async (req, res) => {
     
     // Check if registration exists
     const [existing] = await pool.execute(
-      'SELECT registration_id FROM Registration WHERE registration_id = ?',
-      [id]
+      'SELECT registration_id FROM Registration WHERE registration_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (existing.length === 0) {
@@ -241,8 +242,8 @@ router.put('/:id', async (req, res) => {
     
     // Update registration
     await pool.execute(
-      'UPDATE Registration SET status = ? WHERE registration_id = ?',
-      [status, id]
+      'UPDATE Registration SET status = ? WHERE registration_id = ? AND admin_id = ?',
+      [status, id, req.admin.id]
     );
     
     // Fetch updated registration with details
@@ -260,8 +261,8 @@ router.put('/:id', async (req, res) => {
       FROM Registration r
       JOIN Participant p ON r.participant_id = p.participant_id
       JOIN Event e ON r.event_id = e.event_id
-      WHERE r.registration_id = ?
-    `, [id]);
+      WHERE r.registration_id = ? AND r.admin_id = ?
+    `, [id, req.admin.id]);
     
     res.json({
       success: true,
@@ -288,8 +289,8 @@ router.delete('/:id', async (req, res) => {
     
     // Check if registration exists
     const [existing] = await connection.execute(
-      'SELECT registration_id FROM Registration WHERE registration_id = ?',
-      [id]
+      'SELECT registration_id FROM Registration WHERE registration_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (existing.length === 0) {
@@ -302,8 +303,8 @@ router.delete('/:id', async (req, res) => {
     
     // Delete registration
     await connection.execute(
-      'DELETE FROM Registration WHERE registration_id = ?',
-      [id]
+      'DELETE FROM Registration WHERE registration_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     // Check if table is now empty, if so reset AUTO_INCREMENT
@@ -348,9 +349,10 @@ router.get('/stats', async (req, res) => {
         SUM(CASE WHEN r.status = 'completed' THEN 1 ELSE 0 END) as completed_count
       FROM Event e
       LEFT JOIN Registration r ON e.event_id = r.event_id
+      WHERE e.admin_id = ?
       GROUP BY e.event_id, e.event_name, e.event_date
       ORDER BY e.event_date
-    `);
+    `, [req.admin.id]);
     
     res.json({
       success: true,

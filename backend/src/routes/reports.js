@@ -22,9 +22,10 @@ router.get('/event-participants', async (req, res) => {
       FROM Event e
       LEFT JOIN Registration r ON e.event_id = r.event_id AND r.status = 'registered'
       LEFT JOIN Participant p ON r.participant_id = p.participant_id
+      WHERE e.admin_id = ?
       GROUP BY e.event_id, e.event_name, e.event_date, e.event_type, e.venue
       ORDER BY e.event_date
-    `);
+    `, [req.admin.id]);
     
     res.json({
       success: true,
@@ -60,9 +61,10 @@ router.get('/event-coordinators', async (req, res) => {
       FROM Event e
       LEFT JOIN Event_Assignment ea ON e.event_id = ea.event_id
       LEFT JOIN Coordinator c ON ea.coordinator_id = c.coordinator_id
+      WHERE e.admin_id = ?
       GROUP BY e.event_id, e.event_name, e.event_date, e.event_type, e.venue
       ORDER BY e.event_date
-    `);
+    `, [req.admin.id]);
     
     res.json({
       success: true,
@@ -88,9 +90,10 @@ router.get('/participants-by-college', async (req, res) => {
         COUNT(*) AS participant_count,
         GROUP_CONCAT(name ORDER BY name SEPARATOR ', ') AS participants
       FROM Participant
+      WHERE admin_id = ?
       GROUP BY college
       ORDER BY participant_count DESC
-    `);
+    `, [req.admin.id]);
     
     res.json({
       success: true,
@@ -120,9 +123,10 @@ router.get('/events-by-type', async (req, res) => {
       FROM Event e
       LEFT JOIN Registration r ON e.event_id = r.event_id AND r.status = 'registered'
       LEFT JOIN Event_Assignment ea ON e.event_id = ea.event_id
+      WHERE e.admin_id = ?
       GROUP BY e.event_type
       ORDER BY total_registrations DESC
-    `);
+    `, [req.admin.id]);
     
     res.json({
       success: true,
@@ -153,11 +157,11 @@ router.get('/multi-event-participants', async (req, res) => {
       FROM Participant p
       JOIN Registration r ON p.participant_id = r.participant_id
       JOIN Event e ON r.event_id = e.event_id
-      WHERE r.status = 'registered'
+      WHERE r.status = 'registered' AND p.admin_id = ?
       GROUP BY p.participant_id, p.name, p.college, p.department
       HAVING COUNT(r.event_id) > 1
       ORDER BY events_registered DESC, p.name
-    `);
+    `, [req.admin.id]);
     
     res.json({
       success: true,
@@ -189,9 +193,10 @@ router.get('/coordinator-workload', async (req, res) => {
       FROM Coordinator c
       LEFT JOIN Event_Assignment ea ON c.coordinator_id = ea.coordinator_id
       LEFT JOIN Event e ON ea.event_id = e.event_id
+      WHERE c.admin_id = ?
       GROUP BY c.coordinator_id, c.name, c.type, c.department
       ORDER BY assigned_events DESC, c.type, c.name
-    `);
+    `, [req.admin.id]);
     
     res.json({
       success: true,
@@ -211,9 +216,9 @@ router.get('/coordinator-workload', async (req, res) => {
 // GET comprehensive dashboard statistics
 router.get('/dashboard-stats', async (req, res) => {
   try {
-    const [participantStats] = await pool.execute('SELECT COUNT(*) AS total FROM Participant');
-    const [eventStats] = await pool.execute('SELECT COUNT(*) AS total FROM Event');
-    const [coordinatorStats] = await pool.execute('SELECT COUNT(*) AS total FROM Coordinator');
+    const [participantStats] = await pool.execute('SELECT COUNT(*) AS total FROM Participant WHERE admin_id = ?', [req.admin.id]);
+    const [eventStats] = await pool.execute('SELECT COUNT(*) AS total FROM Event WHERE admin_id = ?', [req.admin.id]);
+    const [coordinatorStats] = await pool.execute('SELECT COUNT(*) AS total FROM Coordinator WHERE admin_id = ?', [req.admin.id]);
     const [registrationStats] = await pool.execute(`
       SELECT 
         COUNT(*) AS total_registrations,
@@ -221,10 +226,11 @@ router.get('/dashboard-stats', async (req, res) => {
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_count,
         SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_count
       FROM Registration
-    `);
+      WHERE admin_id = ?
+    `, [req.admin.id]);
     const [upcomingEvents] = await pool.execute(`
-      SELECT COUNT(*) AS total FROM Event WHERE event_date >= CURDATE()
-    `);
+      SELECT COUNT(*) AS total FROM Event WHERE event_date >= CURDATE() AND admin_id = ?
+    `, [req.admin.id]);
     
     const stats = {
       total_participants: participantStats[0].total,

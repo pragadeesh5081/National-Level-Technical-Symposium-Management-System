@@ -7,7 +7,8 @@ const { pool } = require('../config/database');
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT * FROM Coordinator ORDER BY coordinator_id ASC'
+      'SELECT * FROM Coordinator WHERE admin_id = ? ORDER BY coordinator_id ASC',
+      [req.admin.id]
     );
     res.json({
       success: true,
@@ -29,8 +30,8 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await pool.execute(
-      'SELECT * FROM Coordinator WHERE coordinator_id = ?',
-      [id]
+      'SELECT * FROM Coordinator WHERE coordinator_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (rows.length === 0) {
@@ -78,8 +79,8 @@ router.post('/', async (req, res) => {
     // Check if email already exists (if provided)
     if (email) {
       const [existing] = await pool.execute(
-        'SELECT coordinator_id FROM Coordinator WHERE email = ?',
-        [email]
+        'SELECT coordinator_id FROM Coordinator WHERE email = ? AND admin_id = ?',
+        [email, req.admin.id]
       );
       
       if (existing.length > 0) {
@@ -92,14 +93,14 @@ router.post('/', async (req, res) => {
     
     // Insert new coordinator
     const [result] = await pool.execute(
-      'INSERT INTO Coordinator (name, type, email, phone, department) VALUES (?, ?, ?, ?, ?)',
-      [name, type, email || null, phone || null, department || null]
+      'INSERT INTO Coordinator (name, type, email, phone, department, admin_id) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, type, email || null, phone || null, department || null, req.admin.id]
     );
     
     // Fetch the newly created coordinator
     const [newCoordinator] = await pool.execute(
-      'SELECT * FROM Coordinator WHERE coordinator_id = ?',
-      [result.insertId]
+      'SELECT * FROM Coordinator WHERE coordinator_id = ? AND admin_id = ?',
+      [result.insertId, req.admin.id]
     );
     
     res.status(201).json({
@@ -125,8 +126,8 @@ router.put('/:id', async (req, res) => {
     
     // Check if coordinator exists
     const [existing] = await pool.execute(
-      'SELECT coordinator_id FROM Coordinator WHERE coordinator_id = ?',
-      [id]
+      'SELECT coordinator_id FROM Coordinator WHERE coordinator_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (existing.length === 0) {
@@ -147,8 +148,8 @@ router.put('/:id', async (req, res) => {
     // Check if email already exists for another coordinator (if provided)
     if (email) {
       const [emailCheck] = await pool.execute(
-        'SELECT coordinator_id FROM Coordinator WHERE email = ? AND coordinator_id != ?',
-        [email, id]
+        'SELECT coordinator_id FROM Coordinator WHERE email = ? AND coordinator_id != ? AND admin_id = ?',
+        [email, id, req.admin.id]
       );
       
       if (emailCheck.length > 0) {
@@ -161,14 +162,14 @@ router.put('/:id', async (req, res) => {
     
     // Update coordinator
     await pool.execute(
-      'UPDATE Coordinator SET name = ?, type = ?, email = ?, phone = ?, department = ? WHERE coordinator_id = ?',
-      [name, type, email || null, phone || null, department || null, id]
+      'UPDATE Coordinator SET name = ?, type = ?, email = ?, phone = ?, department = ? WHERE coordinator_id = ? AND admin_id = ?',
+      [name, type, email || null, phone || null, department || null, id, req.admin.id]
     );
     
     // Fetch updated coordinator
     const [updated] = await pool.execute(
-      'SELECT * FROM Coordinator WHERE coordinator_id = ?',
-      [id]
+      'SELECT * FROM Coordinator WHERE coordinator_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     res.json({
@@ -196,8 +197,8 @@ router.delete('/:id', async (req, res) => {
     
     // Check if coordinator exists
     const [existing] = await connection.execute(
-      'SELECT coordinator_id FROM Coordinator WHERE coordinator_id = ?',
-      [id]
+      'SELECT coordinator_id FROM Coordinator WHERE coordinator_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (existing.length === 0) {
@@ -210,8 +211,8 @@ router.delete('/:id', async (req, res) => {
     
     // Delete coordinator (will cascade delete event assignments)
     await connection.execute(
-      'DELETE FROM Coordinator WHERE coordinator_id = ?',
-      [id]
+      'DELETE FROM Coordinator WHERE coordinator_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     // Check if table is now empty, if so reset AUTO_INCREMENT
@@ -293,8 +294,8 @@ router.get('/by-type/:type', async (req, res) => {
     }
     
     const [rows] = await pool.execute(
-      'SELECT * FROM Coordinator WHERE type = ? ORDER BY name',
-      [type]
+      'SELECT * FROM Coordinator WHERE type = ? AND admin_id = ? ORDER BY name',
+      [type, req.admin.id]
     );
     
     res.json({

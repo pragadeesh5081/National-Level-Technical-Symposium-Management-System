@@ -7,7 +7,8 @@ const { pool } = require('../config/database');
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT * FROM Event ORDER BY event_id ASC'
+      'SELECT * FROM Event WHERE admin_id = ? ORDER BY event_id ASC',
+      [req.admin.id]
     );
     res.json({
       success: true,
@@ -35,9 +36,10 @@ router.get('/with-stats', async (req, res) => {
       FROM Event e
       LEFT JOIN Registration r ON e.event_id = r.event_id AND r.status = 'registered'
       LEFT JOIN Event_Assignment ea ON e.event_id = ea.event_id
+      WHERE e.admin_id = ?
       GROUP BY e.event_id
       ORDER BY e.event_id ASC
-    `);
+    `, [req.admin.id]);
     
     res.json({
       success: true,
@@ -59,8 +61,8 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await pool.execute(
-      'SELECT * FROM Event WHERE event_id = ?',
-      [id]
+      'SELECT * FROM Event WHERE event_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (rows.length === 0) {
@@ -99,8 +101,8 @@ router.post('/', async (req, res) => {
     
     // Check if event name already exists
     const [existing] = await pool.execute(
-      'SELECT event_id FROM Event WHERE event_name = ?',
-      [event_name]
+      'SELECT event_id FROM Event WHERE event_name = ? AND admin_id = ?',
+      [event_name, req.admin.id]
     );
     
     if (existing.length > 0) {
@@ -112,21 +114,22 @@ router.post('/', async (req, res) => {
     
     // Insert new event
     const [result] = await pool.execute(
-      'INSERT INTO Event (event_name, event_type, description, event_date, venue, max_participants) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO Event (event_name, event_type, description, event_date, venue, max_participants, admin_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [
         event_name,
         event_type,
         description || null,
         event_date,
         venue || null,
-        max_participants || 100
+        max_participants || 100,
+        req.admin.id
       ]
     );
     
     // Fetch the newly created event
     const [newEvent] = await pool.execute(
-      'SELECT * FROM Event WHERE event_id = ?',
-      [result.insertId]
+      'SELECT * FROM Event WHERE event_id = ? AND admin_id = ?',
+      [result.insertId, req.admin.id]
     );
     
     res.status(201).json({
@@ -152,8 +155,8 @@ router.put('/:id', async (req, res) => {
     
     // Check if event exists
     const [existing] = await pool.execute(
-      'SELECT event_id FROM Event WHERE event_id = ?',
-      [id]
+      'SELECT event_id FROM Event WHERE event_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (existing.length === 0) {
@@ -166,8 +169,8 @@ router.put('/:id', async (req, res) => {
     // Check if event name already exists for another event
     if (event_name) {
       const [nameCheck] = await pool.execute(
-        'SELECT event_id FROM Event WHERE event_name = ? AND event_id != ?',
-        [event_name, id]
+        'SELECT event_id FROM Event WHERE event_name = ? AND event_id != ? AND admin_id = ?',
+        [event_name, id, req.admin.id]
       );
       
       if (nameCheck.length > 0) {
@@ -180,7 +183,7 @@ router.put('/:id', async (req, res) => {
     
     // Update event
     await pool.execute(
-      'UPDATE Event SET event_name = ?, event_type = ?, description = ?, event_date = ?, venue = ?, max_participants = ? WHERE event_id = ?',
+      'UPDATE Event SET event_name = ?, event_type = ?, description = ?, event_date = ?, venue = ?, max_participants = ? WHERE event_id = ? AND admin_id = ?',
       [
         event_name,
         event_type,
@@ -188,14 +191,15 @@ router.put('/:id', async (req, res) => {
         event_date,
         venue || null,
         max_participants || 100,
-        id
+        id,
+        req.admin.id
       ]
     );
     
     // Fetch updated event
     const [updated] = await pool.execute(
-      'SELECT * FROM Event WHERE event_id = ?',
-      [id]
+      'SELECT * FROM Event WHERE event_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     res.json({
@@ -223,8 +227,8 @@ router.delete('/:id', async (req, res) => {
     
     // Check if event exists
     const [existing] = await connection.execute(
-      'SELECT event_id FROM Event WHERE event_id = ?',
-      [id]
+      'SELECT event_id FROM Event WHERE event_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     if (existing.length === 0) {
@@ -237,8 +241,8 @@ router.delete('/:id', async (req, res) => {
     
     // Delete event (will cascade delete registrations and assignments)
     await connection.execute(
-      'DELETE FROM Event WHERE event_id = ?',
-      [id]
+      'DELETE FROM Event WHERE event_id = ? AND admin_id = ?',
+      [id, req.admin.id]
     );
     
     // Check if table is now empty, if so reset AUTO_INCREMENT
