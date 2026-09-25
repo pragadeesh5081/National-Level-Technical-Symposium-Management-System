@@ -12,6 +12,7 @@ const Dashboard = ({ showMessage }) => {
     upcomingEvents: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [recentRegistrations, setRecentRegistrations] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
 
@@ -22,40 +23,41 @@ const Dashboard = ({ showMessage }) => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch all data in parallel
+      setError(false);
+
+      // Use allSettled so one failing call doesn't crash the whole dashboard
       const [
         participantsRes,
         eventsRes,
         coordinatorsRes,
         registrationsRes,
-        eventsWithStatsRes,
         registrationsListRes
-      ] = await Promise.all([
+      ] = await Promise.allSettled([
         apiService.participants.getAll(),
         apiService.events.getAll(),
         apiService.coordinators.getAll(),
         apiService.registrations.getStats(),
-        apiService.events.getWithStats(),
         apiService.registrations.getAll()
       ]);
 
-      const participants = participantsRes.data.data || [];
-      const events = eventsRes.data.data || [];
-      const coordinators = coordinatorsRes.data.data || [];
-      const registrationStats = registrationsRes.data.data || [];
-      const eventsWithStats = eventsWithStatsRes.data.data || [];
-      const registrationsList = registrationsListRes.data.data || [];
+      const getValue = (result) =>
+        result.status === 'fulfilled' ? (result.value?.data?.data || []) : [];
+
+      const participants = getValue(participantsRes);
+      const events = getValue(eventsRes);
+      const coordinators = getValue(coordinatorsRes);
+      const registrationStats = getValue(registrationsRes);
+      const registrationsList = getValue(registrationsListRes);
 
       // Calculate stats
       const facultyCount = coordinators.filter(c => c.type === 'faculty').length;
       const studentCount = coordinators.filter(c => c.type === 'student').length;
-      
+
       // Count upcoming events (events after today)
       const today = new Date();
       const upcomingCount = events.filter(event => new Date(event.event_date) >= today).length;
 
-      // Get upcoming events
+      // Get upcoming events (sorted, top 5)
       const upcoming = events
         .filter(event => new Date(event.event_date) >= today)
         .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
@@ -66,11 +68,15 @@ const Dashboard = ({ showMessage }) => {
         .sort((a, b) => new Date(b.registration_date) - new Date(a.registration_date))
         .slice(0, 5);
 
+      const totalRegistrations = registrationStats.reduce(
+        (sum, stat) => sum + (Number(stat.total_registrations) || 0), 0
+      );
+
       setStats({
         participants: participants.length,
         events: events.length,
         coordinators: coordinators.length,
-        registrations: registrationStats.reduce((sum, stat) => sum + stat.total_registrations, 0),
+        registrations: totalRegistrations,
         facultyCoordinators: facultyCount,
         studentCoordinators: studentCount,
         upcomingEvents: upcomingCount,
@@ -78,9 +84,10 @@ const Dashboard = ({ showMessage }) => {
 
       setUpcomingEvents(upcoming);
       setRecentRegistrations(recent);
-      
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError(true);
       showMessage('Error loading dashboard data', 'error');
     } finally {
       setLoading(false);
@@ -95,10 +102,24 @@ const Dashboard = ({ showMessage }) => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="loading">
+        <h2>Failed to load dashboard</h2>
+        <p style={{ color: '#6c757d', marginBottom: '20px' }}>
+          Please check your connection and try again.
+        </p>
+        <button className="btn btn-primary" onClick={fetchDashboardData}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h2 style={{ marginBottom: '30px', color: '#2c3e50' }}>Dashboard Overview</h2>
-      
+
       {/* Statistics Cards */}
       <div className="stats-grid">
         <div className="stat-card">
@@ -140,10 +161,10 @@ const Dashboard = ({ showMessage }) => {
           ) : (
             <div>
               {upcomingEvents.map(event => (
-                <div key={event.event_id} style={{ 
-                  padding: '15px', 
-                  border: '1px solid #dee2e6', 
-                  borderRadius: '4px', 
+                <div key={event.event_id} style={{
+                  padding: '15px',
+                  border: '1px solid #dee2e6',
+                  borderRadius: '4px',
                   marginBottom: '10px',
                   backgroundColor: '#f8f9fa'
                 }}>
@@ -167,10 +188,10 @@ const Dashboard = ({ showMessage }) => {
           ) : (
             <div>
               {recentRegistrations.map(reg => (
-                <div key={reg.registration_id} style={{ 
-                  padding: '15px', 
-                  border: '1px solid #dee2e6', 
-                  borderRadius: '4px', 
+                <div key={reg.registration_id} style={{
+                  padding: '15px',
+                  border: '1px solid #dee2e6',
+                  borderRadius: '4px',
                   marginBottom: '10px',
                   backgroundColor: '#f8f9fa'
                 }}>
