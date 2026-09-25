@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 require('dotenv').config();
 
 const { testConnection } = require('./config/database');
+const authMiddleware = require('./middleware/auth');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -31,13 +32,13 @@ testConnection();
 
 // API Routes
 app.use('/api/auth', authRoutes);   // Public: login, setup, verify
-app.use('/api/participants', participantRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/coordinators', coordinatorRoutes);
-app.use('/api/registrations', registrationRoutes);
-app.use('/api/event-assignments', eventAssignmentRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/reset', resetRoutes);
+app.use('/api/participants', authMiddleware, participantRoutes);
+app.use('/api/events', authMiddleware, eventRoutes);
+app.use('/api/coordinators', authMiddleware, coordinatorRoutes);
+app.use('/api/registrations', authMiddleware, registrationRoutes);
+app.use('/api/event-assignments', authMiddleware, eventAssignmentRoutes);
+app.use('/api/reports', authMiddleware, reportsRoutes);
+app.use('/api/reset', authMiddleware, resetRoutes);
 
 // Root endpoint
 app.get('/api', (req, res) => {

@@ -55,15 +55,9 @@ router.post('/login', async (req, res) => {
 });
 
 // ─── POST /api/auth/setup ─────────────────────────────────────────────────────
-// One-time setup to create the first admin account
+// Create an admin/organizer account
 router.post('/setup', async (req, res) => {
   try {
-    const [existing] = await pool.query('SELECT COUNT(*) as count FROM Admin');
-    if (existing[0].count > 0) {
-      return res.status(403).json({
-        error: 'Setup already completed. An admin account already exists.',
-      });
-    }
 
     const { username, password, email } = req.body;
 

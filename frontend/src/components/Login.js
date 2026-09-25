@@ -79,7 +79,7 @@ const Login = () => {
             className={`login-tab-btn ${mode === 'setup' ? 'active' : ''}`}
             onClick={() => { setMode('setup'); setError(''); setSuccess(''); }}
           >
-            First-Time Setup
+            Create Account
           </button>
         </div>
 
@@ -134,7 +134,7 @@ const Login = () => {
         {mode === 'setup' && (
           <form onSubmit={handleSetup} className="login-form">
             <div className="login-notice">
-              ℹ️ Use this only once to create the first admin account.
+              ℹ️ Create a new admin/organizer account here.
             </div>
 
             <div className="login-field">
